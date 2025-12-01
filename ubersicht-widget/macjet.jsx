@@ -52,7 +52,7 @@
  *
  * Author:  B4E SRL - David Baldwin
  * License: MIT
- * Version: 2.3.7
+ * Version: 2.3.22
  * Date:    2025-11-29
  *
  * Repository: https://github.com/dbn-b4e/MacJet
@@ -71,7 +71,7 @@ export const refreshFrequency = 5000;
 const SCALE = 1.0;
 
 // Version
-const VERSION = '2.3.7';
+const VERSION = '2.3.22';
 
 // Position: 'bottom-left', 'bottom-right', 'top-left', 'top-right'
 const POSITION = 'bottom-left';
@@ -296,12 +296,14 @@ def get_network_info():
     # Get WiFi IP (en0 is usually WiFi on Mac)
     wifi_ip = run_cmd("ipconfig getifaddr en0 2>/dev/null")
     if wifi_ip.strip():
-        info['wifi_ip'] = wifi_ip.strip()
+        info['wifi_ip'] = wifi_ip.strip().replace(chr(10), '').replace(chr(13), '')
 
     # Get WiFi SSID using system_profiler (airport is deprecated)
-    ssid_output = run_cmd("system_profiler SPAirPortDataType 2>/dev/null | grep -A2 'Current Network Information:' | head -2 | tail -1 | sed 's/^[[:space:]]*//' | cut -d: -f1")
-    if ssid_output.strip():
-        info['wifi_ssid'] = ssid_output.strip()
+    # Note: macOS may redact SSID for privacy if Location Services not granted
+    ssid_output = run_cmd("system_profiler SPAirPortDataType 2>/dev/null | grep -A2 'Current Network Information:' | head -2 | tail -1 | sed 's/^[[:space:]]*//' | sed 's/:$//'")
+    ssid_clean = ssid_output.strip().replace(chr(10), '').replace(chr(13), '')
+    if ssid_clean and ssid_clean != '<redacted>':
+        info['wifi_ssid'] = ssid_clean
     elif info['wifi_ip'] != 'N/A':
         info['wifi_ssid'] = 'Connected'
 
@@ -565,7 +567,7 @@ export const render = ({ output, error }) => {
         {(data.cpu_temp > 0 || data.fan_speed > 0) && (
           <div data-section="cpu" style={{...styles.details, display: expanded.cpu ? 'flex' : 'none'}}>
             {data.cpu_temp > 0 && <span>Temp: <span style={{color: data.cpu_temp > 80 ? '#ef4444' : data.cpu_temp > 60 ? '#f59e0b' : 'rgba(255,255,255,0.7)'}}>{data.cpu_temp}°C</span></span>}
-            {data.cpu_temp > 0 && <span>Fan: {data.fan_speed > 0 ? data.fan_speed + ' RPM' : 'idle'}</span>}
+            {data.cpu_temp > 0 && <span>Fan: <span style={{color: 'rgba(255,255,255,0.7)'}}>{data.fan_speed > 0 ? data.fan_speed + ' RPM' : 'IDLE'}</span></span>}
           </div>
         )}
       </div>
@@ -687,13 +689,7 @@ export const render = ({ output, error }) => {
         />
         <div style={styles.networkInfo}>
           <span style={styles.networkLabel}>WiFi:</span>
-          <span style={{
-            ...styles.networkValue,
-            color: data.wifi_ssid !== 'Off' ? '#22c55e' : 'rgba(255,255,255,0.4)'
-          }}>{data.wifi_ssid}</span>
-          {data.wifi_ip !== 'N/A' && (
-            <span style={{...styles.networkValue, marginLeft: '8px', color: 'rgba(255,255,255,0.5)'}}>{data.wifi_ip}</span>
-          )}
+          <span style={{...styles.networkValue, color: data.wifi_ssid !== 'Off' ? '#22c55e' : 'rgba(255,255,255,0.4)'}}>{`${data.wifi_ssid}${data.wifi_ip !== 'N/A' ? ' ' + data.wifi_ip : ''}`}</span>
         </div>
         <div style={styles.networkInfo}>
           <span style={styles.networkLabel}>Ethernet:</span>
@@ -745,7 +741,7 @@ const styles = {
     WebkitBackdropFilter: 'blur(20px)',
     borderRadius: '14px',
     padding: '14px 16px',
-    width: '290px',
+    width: '320px',
     border: '1px solid rgba(255,255,255,0.12)',
     boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
     transform: `scale(${SCALE})`,
@@ -847,18 +843,21 @@ const styles = {
   networkInfo: {
     display: 'flex',
     alignItems: 'center',
+    flexWrap: 'nowrap',
     marginTop: '4px',
     paddingLeft: '18px',
+    overflow: 'hidden',
   },
   networkLabel: {
     fontSize: '9px',
     color: 'rgba(255,255,255,0.4)',
     width: '55px',
+    flexShrink: 0,
   },
   networkValue: {
+    display: 'inline',
     fontSize: '9px',
     color: 'rgba(255,255,255,0.7)',
-    fontFamily: 'SF Mono, Menlo, monospace',
   },
   infoRow: {
     display: 'flex',
