@@ -2,7 +2,7 @@
 
 A beautiful glassmorphism system monitor widget for macOS desktop.
 
-![MacJet Screenshot](MacInfo.png)
+![MacJet Screenshot](MacJet.png)
 
 **Author:** B4E SRL - David Baldwin
 **License:** MIT
@@ -10,13 +10,13 @@ A beautiful glassmorphism system monitor widget for macOS desktop.
 
 ## Features
 
-- **CPU** - Usage percentage, temperature, fan speed (idle/RPM), thermal throttling indicator
-- **Memory** - Used/total with purgeable memory accounted for
-- **Disk** - Free/total with purgeable space, one-click RAM purge and Time Machine snapshot cleanup
+- **CPU** - Usage percentage, temperature, fan speed (RPM), thermal throttling indicator
+- **Memory** - Used/total GB, one-click RAM purge
+- **Disk** - Free/total GB, purgeable space, one-click Time Machine snapshot cleanup
 - **Battery** - Percentage, status, health, cycle count, temperature, time estimates
 - **Power** - Adapter usage/capacity, charging power, discharge rate on battery
 - **Network** - WiFi SSID/IP, Ethernet IP, Tailscale VPN status
-- **Bluetooth** - Battery levels for Magic Mouse, Keyboard, Trackpad, AirPods
+- **Bluetooth** - Battery levels for connected devices (Keyboard, Mouse, Trackpad, AirPods)
 - **Uptime** - System uptime display
 
 ### UI Features
@@ -24,8 +24,9 @@ A beautiful glassmorphism system monitor widget for macOS desktop.
 - Glassmorphism design with backdrop blur
 - Gradient progress bars with glow effects
 - Click sections to expand/collapse for additional details
-- Persistent settings via localStorage
+- Persistent expand/collapse state via localStorage
 - Configurable scale (zoom) and screen position
+- Version display in header
 
 ## Installation
 
@@ -40,18 +41,23 @@ This script will:
 2. Download and install Übersicht if not present
 3. Copy the widget to the correct location
 4. Configure Übersicht to start on login
-5. Optionally enable advanced features (CPU temp, fan speed, disk purge)
+5. **Optionally enable advanced features** (see below)
 6. Launch Übersicht
 
 ### Advanced Features (Optional)
 
-The installer will ask if you want to enable:
-- **CPU temperature** and **fan speed** monitoring
-- **Disk purge** functionality (one-click to free purgeable space)
+During installation, you'll be asked if you want to enable advanced features:
 
-This requires adding passwordless sudo for `powermetrics`, `purge`, and `tmutil`.
-You'll be prompted for your password once during installation. The configuration
-is stored in `/etc/sudoers.d/macjet`.
+| Feature | What it enables | Requires |
+|---------|-----------------|----------|
+| CPU Temperature | Shows CPU temp (e.g., 73.59°C) | `powermetrics` |
+| Fan Speed | Shows fan RPM (e.g., 3279 RPM) | `powermetrics` |
+| Purge RAM | One-click memory cache clear | `purge` |
+| Purge TM | One-click Time Machine snapshot deletion | `tmutil` |
+
+This requires adding passwordless sudo permissions. You'll be prompted for your password once during installation. The configuration is stored in `/etc/sudoers.d/macjet`.
+
+**Without advanced features:** CPU temp/fan won't show, and purge buttons will show "Manage" link to System Settings instead.
 
 To remove advanced features later:
 ```bash
@@ -79,10 +85,6 @@ sudo rm /etc/sudoers.d/macjet
 Edit `macjet.jsx` and modify the configuration section at the top:
 
 ```javascript
-// =============================================================================
-// CONFIGURATION
-// =============================================================================
-
 // Refresh interval in milliseconds
 export const refreshFrequency = 5000;
 
@@ -106,6 +108,33 @@ const POSITION = 'bottom-left';
 - `'bottom-right'` - Bottom right corner
 - `'top-left'` - Top left corner
 - `'top-right'` - Top right corner
+
+## Interactive Features
+
+### Expandable Sections
+
+Click on any section header to expand/collapse additional details:
+
+| Section | Expanded Details |
+|---------|------------------|
+| CPU | Temperature, Fan speed |
+| Memory | Purge RAM button |
+| Disk | Purgeable space, Purge TM button |
+| Battery | Health %, Cycles, Temperature, Time estimate, Adapter info |
+| Network | WiFi details, Ethernet IP, Tailscale status |
+
+### Purge Buttons
+
+When advanced features are enabled:
+
+- **Purge RAM** (Memory section, green) - Clears inactive memory cache (`sudo purge`)
+- **Purge TM** (Disk section, orange) - Deletes all Time Machine local snapshots
+
+**Note:** Disk "purgeable" space includes:
+- Time Machine local snapshots (cleared by Purge TM)
+- iCloud downloaded files (managed automatically by macOS)
+- System caches (managed automatically by macOS)
+- Some APFS snapshots may be protected by the system and cannot be deleted
 
 ## Tools Included
 
@@ -135,46 +164,6 @@ python3 power_monitor.py
 
 - **Xcode Command Line Tools** - For accurate disk purgeable space (falls back to `df` if not installed)
 - **Tailscale** - For VPN status display
-- **CPU temperature & fan speed** - Requires one of:
-  - `osx-cpu-temp` via Homebrew: `brew install osx-cpu-temp`
-  - Or configure passwordless sudo for powermetrics (see below)
-
-### Enabling CPU Temperature & Fan Speed
-
-To enable CPU temp and fan speed without Homebrew, configure sudo to allow `powermetrics` without a password:
-
-```bash
-sudo visudo
-```
-
-Add this line at the end (replace `yourusername` with your actual username):
-
-```
-yourusername ALL=(ALL) NOPASSWD: /usr/bin/powermetrics
-```
-
-Save and exit. The widget will automatically detect and display CPU temperature and fan speed on next refresh.
-
-### Enabling One-Click Purge Features
-
-To enable purge buttons directly from the widget (instead of opening Storage settings), add permissions:
-
-```bash
-sudo visudo
-```
-
-Add this line (replace `yourusername` with your actual username):
-
-```
-yourusername ALL=(ALL) NOPASSWD: /usr/sbin/purge, /usr/bin/tmutil
-```
-
-Save and exit. The widget will detect this and show two purge buttons in the disk section:
-
-- **Purge RAM** (Memory section) - Clears inactive memory cache (`sudo purge`)
-- **Purge TM** (Disk section) - Deletes all Time Machine local snapshots (`tmutil deletelocalsnapshots`)
-
-The TM purge is useful if you back up to a NAS (like Synology) and don't need local snapshots consuming disk space. Note that disk "purgeable" space may also include iCloud files and system caches which macOS manages automatically.
 
 ## Technical Details
 
@@ -183,28 +172,29 @@ The TM purge is useful if you back up to a NAS (like Synology) and don't need lo
 | Metric | Source |
 |--------|--------|
 | CPU Usage | `top -l 1` |
+| CPU Temp/Fan | `sudo powermetrics` |
 | Memory | `vm_stat`, `sysctl hw.memsize` |
 | Disk | Swift `URLResourceKey.volumeAvailableCapacityForImportantUsageKey` |
 | Battery | `ioreg -rn AppleSmartBattery` |
-| Power | `ioreg` (SystemPowerIn, ChargingCurrent, ChargingVoltage) |
+| Power | `ioreg` (SystemPowerIn, Amperage, Voltage) |
 | Network | `ipconfig`, `system_profiler SPAirPortDataType` |
-| Tailscale | `/Applications/Tailscale.app/Contents/MacOS/Tailscale` CLI |
+| Tailscale | `/Applications/Tailscale.app/Contents/MacOS/Tailscale status` |
 | Bluetooth | `ioreg -r -k BatteryPercent` |
 | Thermal | `pmset -g therm` |
 | Uptime | `sysctl kern.boottime` |
 
 ### Power Calculations
 
-- **On AC**: Adapter total from `SystemPowerIn`, charging power from `ChargingCurrent × ChargingVoltage`
+- **On AC**: Adapter total from `SystemPowerIn`, charging power from `Amperage × Voltage`
 - **On Battery**: Discharge power from `InstantAmperage × Voltage` (handles unsigned 64-bit conversion)
 
 Display format:
-- On AC: `Adapter: 47/65W - Charging 25W`
+- On AC: `Adapter: 52.6/65W - Charging 2.8W`
 - On Battery: `Discharge: 35W`
 
 ### Disk Space
 
-Uses Swift's `volumeAvailableCapacityForImportantUsageKey` for accurate APFS reporting that includes purgeable space, matching what Finder shows. Falls back to `df` command on Macs without Xcode Command Line Tools (purgeable space won't be shown).
+Uses Swift's `volumeAvailableCapacityForImportantUsageKey` for accurate APFS reporting that includes purgeable space, matching what Finder shows. Falls back to `df` command on Macs without Xcode Command Line Tools.
 
 ## Troubleshooting
 
@@ -214,34 +204,41 @@ Uses Swift's `volumeAvailableCapacityForImportantUsageKey` for accurate APFS rep
 2. Click menu bar icon → "Refresh All Widgets"
 3. Check for errors: menu → "Open Widgets Folder" → right-click widget → "Show Debug Console"
 
+### CPU temp/fan not showing
+
+Run the installer and select "y" for advanced features, or manually add to sudoers:
+```bash
+echo "$USER ALL=(ALL) NOPASSWD: /usr/bin/powermetrics" | sudo tee -a /etc/sudoers.d/macjet
+```
+
+### Purge buttons show "Manage" instead
+
+Advanced features not enabled. Run installer again and select "y", or manually add:
+```bash
+echo "$USER ALL=(ALL) NOPASSWD: /usr/sbin/purge, /usr/bin/tmutil" | sudo tee -a /etc/sudoers.d/macjet
+```
+
 ### Tailscale shows "Offline" when connected
 
-The widget checks `tailscale status` command. If Tailscale is connected but shows offline, ensure the Tailscale app is running.
+Ensure the Tailscale app is running. The widget checks `tailscale status` command.
 
 ### Battery time shows "calculating..."
 
-macOS takes a few minutes to calculate time estimates after unplugging or when power usage fluctuates. The widget shows "calculating..." until macOS provides an estimate.
+macOS takes a few minutes to calculate time estimates after unplugging or when power usage fluctuates.
 
 ### Adapter shows less than rated wattage
 
-USB-C adapters throttle their output when they overheat. A 100W adapter may report 65W or 45W when hot. Let it cool down to restore full capacity.
+USB-C adapters throttle their output when they overheat. A 100W adapter may report 65W or 45W when hot.
 
-### Memory/Disk values seem wrong
+### Purgeable space doesn't decrease after Purge TM
 
-The tools use macOS APIs for accurate reporting including purgeable space. Verify with:
-
-```bash
-# Check memory
-vm_stat
-
-# Check disk (shows purgeable)
-diskutil info / | grep -E "(Total|Available|Purgeable)"
-```
+Some purgeable space is from iCloud files and system caches that macOS manages automatically. Some APFS snapshots may be protected by the system (e.g., before macOS updates) and cannot be deleted.
 
 ## Uninstall
 
 ```bash
 rm -rf ~/Library/Application\ Support/Übersicht/widgets/macjet
+sudo rm /etc/sudoers.d/macjet  # If advanced features were enabled
 ```
 
 Optionally remove Übersicht:
