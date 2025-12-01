@@ -201,6 +201,11 @@ echo
 echo "Launching Übersicht..."
 open -a Übersicht
 
+# Wait for Übersicht to start, then force refresh to apply sudo changes
+sleep 2
+echo "Refreshing widget..."
+osascript -e 'tell application "Übersicht" to refresh' 2>/dev/null || true
+
 # -----------------------------------------------------------------------------
 # Installation Complete
 # -----------------------------------------------------------------------------
