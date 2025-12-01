@@ -6,13 +6,13 @@ A beautiful glassmorphism system monitor widget for macOS desktop.
 
 **Author:** B4E SRL - David Baldwin
 **License:** MIT
-**Version:** 2.3.4
+**Version:** 2.3.5
 
 ## Features
 
 - **CPU** - Usage percentage, temperature, fan speed (idle/RPM), thermal throttling indicator
 - **Memory** - Used/total with purgeable memory accounted for
-- **Disk** - Free/total with purgeable space, one-click purge (Swift API with `df` fallback)
+- **Disk** - Free/total with purgeable space, one-click RAM purge and Time Machine snapshot cleanup
 - **Battery** - Percentage, status, health, cycle count, temperature, time estimates
 - **Power** - Adapter usage/capacity, charging power, discharge rate on battery
 - **Network** - WiFi SSID/IP, Ethernet IP, Tailscale VPN status
@@ -155,9 +155,9 @@ yourusername ALL=(ALL) NOPASSWD: /usr/bin/powermetrics
 
 Save and exit. The widget will automatically detect and display CPU temperature and fan speed on next refresh.
 
-### Enabling One-Click Disk Purge
+### Enabling One-Click Purge Features
 
-To enable purging disk cache directly from the widget (instead of opening Storage settings), add purge permissions:
+To enable purge buttons directly from the widget (instead of opening Storage settings), add permissions:
 
 ```bash
 sudo visudo
@@ -169,7 +169,12 @@ Add this line (replace `yourusername` with your actual username):
 yourusername ALL=(ALL) NOPASSWD: /usr/sbin/purge, /usr/bin/tmutil
 ```
 
-Save and exit. The widget will detect this and clicking "+XGB purgeable" will run purge directly.
+Save and exit. The widget will detect this and show two purge buttons in the disk section:
+
+- **Purge RAM** - Clears inactive memory cache (`sudo purge`)
+- **Purge TM** - Deletes all Time Machine local snapshots (`tmutil deletelocalsnapshots`)
+
+The TM purge is useful if you back up to a NAS (like Synology) and don't need local snapshots consuming disk space.
 
 ## Technical Details
 

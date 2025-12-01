@@ -52,7 +52,7 @@
  *
  * Author:  B4E SRL - David Baldwin
  * License: MIT
- * Version: 2.3.4
+ * Version: 2.3.5
  * Date:    2025-11-29
  *
  * Repository: https://github.com/dbn-b4e/MacJet
@@ -71,7 +71,7 @@ export const refreshFrequency = 5000;
 const SCALE = 1.0;
 
 // Version
-const VERSION = '2.3.4';
+const VERSION = '2.3.5';
 
 // Position: 'bottom-left', 'bottom-right', 'top-left', 'top-right'
 const POSITION = 'bottom-left';
@@ -604,17 +604,30 @@ export const render = ({ output, error }) => {
           <div data-section="disk" style={{...styles.details, display: expanded.disk ? 'flex' : 'none'}}>
             <span>+{data.disk_purgeable}GB purgeable</span>
             {data.can_purge ? (
-              <span
-                style={{color: '#06b6d4', textDecoration: 'underline', cursor: 'pointer', marginLeft: '8px'}}
-                onClick={(e) => {
-                  const el = e.target;
-                  el.textContent = 'Purging...';
-                  el.style.pointerEvents = 'none';
-                  const cmd = 'sudo purge; sudo tmutil thinlocalsnapshots / 10000000000 4 2>/dev/null || true';
-                  try { require('child_process').exec(cmd); } catch(err) {}
-                  setTimeout(() => { el.textContent = 'Click to purge'; el.style.pointerEvents = 'auto'; }, 5000);
-                }}
-              >Click to purge</span>
+              <span>
+                <span
+                  style={{color: '#06b6d4', textDecoration: 'underline', cursor: 'pointer', marginLeft: '8px'}}
+                  onClick={(e) => {
+                    const el = e.target;
+                    el.textContent = 'Purging...';
+                    el.style.pointerEvents = 'none';
+                    const cmd = 'sudo purge 2>/dev/null || true';
+                    try { require('child_process').exec(cmd); } catch(err) {}
+                    setTimeout(() => { el.textContent = 'Purge RAM'; el.style.pointerEvents = 'auto'; }, 3000);
+                  }}
+                >Purge RAM</span>
+                <span
+                  style={{color: '#f59e0b', textDecoration: 'underline', cursor: 'pointer', marginLeft: '8px'}}
+                  onClick={(e) => {
+                    const el = e.target;
+                    el.textContent = 'Deleting...';
+                    el.style.pointerEvents = 'none';
+                    const cmd = 'for snap in $(tmutil listlocalsnapshots / 2>/dev/null | grep -v Snapshots); do sudo tmutil deletelocalsnapshots ${snap#com.apple.TimeMachine.} 2>/dev/null; done';
+                    try { require('child_process').exec(cmd); } catch(err) {}
+                    setTimeout(() => { el.textContent = 'Purge TM'; el.style.pointerEvents = 'auto'; }, 10000);
+                  }}
+                >Purge TM</span>
+              </span>
             ) : (
               <a
                 href="x-apple.systempreferences:com.apple.settings.Storage"
