@@ -625,7 +625,7 @@ export const render = ({ output, error }) => {
                   const el = e.target;
                   el.textContent = 'Deleting...';
                   el.style.pointerEvents = 'none';
-                  const cmd = 'for snap in $(tmutil listlocalsnapshots / 2>/dev/null | grep -v Snapshots); do sudo tmutil deletelocalsnapshots ${snap#com.apple.TimeMachine.} 2>/dev/null; done';
+                  const cmd = 'sudo tmutil deletelocalsnapshots / 2>/dev/null';
                   try { require('child_process').exec(cmd); } catch(err) {}
                   setTimeout(() => { el.textContent = 'Purge TM'; el.style.pointerEvents = 'auto'; }, 10000);
                 }}
