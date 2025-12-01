@@ -52,7 +52,7 @@
  *
  * Author:  B4E SRL - David Baldwin
  * License: MIT
- * Version: 2.3.6
+ * Version: 2.3.7
  * Date:    2025-11-29
  *
  * Repository: https://github.com/dbn-b4e/MacJet
@@ -71,7 +71,7 @@ export const refreshFrequency = 5000;
 const SCALE = 1.0;
 
 // Version
-const VERSION = '2.3.6';
+const VERSION = '2.3.7';
 
 // Position: 'bottom-left', 'bottom-right', 'top-left', 'top-right'
 const POSITION = 'bottom-left';
@@ -413,7 +413,7 @@ data = {
     'disk_pct': disk['used_pct'],
     'disk_total': round(disk['total_gb'], 0),
     'disk_free': round(disk['free_gb'], 0),
-    'disk_purgeable': round(disk['purgeable_gb'], 0),
+    'disk_purgeable': round(disk['purgeable_gb'], 1),
     'can_purge': can_purge,
     'battery_pct': pmset['percentage'],
     'battery_status': pmset['status'],
@@ -615,29 +615,27 @@ export const render = ({ output, error }) => {
           color2="#ef4444"
           glowColor="rgba(245, 158, 11, 0.5)"
         />
-        {data.disk_purgeable > 0 && (
-          <div data-section="disk" style={{...styles.details, display: expanded.disk ? 'flex' : 'none'}}>
-            <span>+{data.disk_purgeable}GB purgeable</span>
-            {data.can_purge ? (
-              <span
-                style={{color: '#f59e0b', textDecoration: 'underline', cursor: 'pointer', marginLeft: '8px'}}
-                onClick={(e) => {
-                  const el = e.target;
-                  el.textContent = 'Deleting...';
-                  el.style.pointerEvents = 'none';
-                  const cmd = 'sudo tmutil deletelocalsnapshots / 2>/dev/null';
-                  try { require('child_process').exec(cmd); } catch(err) {}
-                  setTimeout(() => { el.textContent = 'Purge TM'; el.style.pointerEvents = 'auto'; }, 10000);
-                }}
-              >Purge TM</span>
-            ) : (
-              <a
-                href="x-apple.systempreferences:com.apple.settings.Storage"
-                style={{color: '#f59e0b', textDecoration: 'underline', cursor: 'pointer', marginLeft: '8px'}}
-              >Manage</a>
-            )}
-          </div>
-        )}
+        <div data-section="disk" style={{...styles.details, display: expanded.disk ? 'flex' : 'none'}}>
+          <span>+{(data.disk_purgeable || 0).toFixed(1)}GB purgeable</span>
+          {data.can_purge ? (
+            <span
+              style={{color: '#f59e0b', textDecoration: 'underline', cursor: 'pointer', marginLeft: '8px'}}
+              onClick={(e) => {
+                const el = e.target;
+                el.textContent = 'Deleting...';
+                el.style.pointerEvents = 'none';
+                const cmd = 'sudo tmutil deletelocalsnapshots / 2>/dev/null';
+                try { require('child_process').exec(cmd); } catch(err) {}
+                setTimeout(() => { el.textContent = 'Purge TM'; el.style.pointerEvents = 'auto'; }, 10000);
+              }}
+            >Purge TM</span>
+          ) : (
+            <a
+              href="x-apple.systempreferences:com.apple.settings.Storage"
+              style={{color: '#f59e0b', textDecoration: 'underline', cursor: 'pointer', marginLeft: '8px'}}
+            >Manage</a>
+          )}
+        </div>
       </div>
 
       {/* Battery Section */}
