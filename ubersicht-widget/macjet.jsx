@@ -70,6 +70,9 @@ export const refreshFrequency = 5000;
 // Scale factor: 1.0 = 100%, 1.2 = 120%, 0.8 = 80%
 const SCALE = 1.0;
 
+// Version
+const VERSION = '2.3.2';
+
 // Position: 'bottom-left', 'bottom-right', 'top-left', 'top-right'
 const POSITION = 'bottom-left';
 
@@ -517,8 +520,13 @@ export const render = ({ output, error }) => {
     <div style={styles.container}>
       {/* Header */}
       <div style={styles.header}>
-        <span style={styles.logo}>◆</span>
-        <span style={styles.title}>MacJet</span>
+        <div style={styles.headerLeft}>
+          <span style={styles.logo}>◆</span>
+          <div style={styles.titleBlock}>
+            <span style={styles.title}>MacJet</span>
+            <span style={styles.version}>v{VERSION}</span>
+          </div>
+        </div>
         <span style={styles.uptime}>up {data.uptime}</span>
       </div>
 
@@ -711,9 +719,14 @@ const styles = {
   header: {
     display: 'flex',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: '14px',
     paddingBottom: '10px',
     borderBottom: '1px solid rgba(255,255,255,0.08)',
+  },
+  headerLeft: {
+    display: 'flex',
+    alignItems: 'center',
   },
   logo: {
     fontSize: '16px',
@@ -722,10 +735,18 @@ const styles = {
     WebkitBackgroundClip: 'text',
     WebkitTextFillColor: 'transparent',
   },
+  titleBlock: {
+    display: 'flex',
+    flexDirection: 'column',
+  },
   title: {
     fontSize: '14px',
     fontWeight: '600',
-    flex: 1,
+    lineHeight: '1.1',
+  },
+  version: {
+    fontSize: '8px',
+    color: 'rgba(255,255,255,0.3)',
   },
   uptime: {
     fontSize: '9px',
