@@ -52,7 +52,7 @@
  *
  * Author:  B4E SRL - David Baldwin
  * License: MIT
- * Version: 2.3.3
+ * Version: 2.3.4
  * Date:    2025-11-29
  *
  * Repository: https://github.com/dbn-b4e/MacJet
@@ -71,7 +71,7 @@ export const refreshFrequency = 5000;
 const SCALE = 1.0;
 
 // Version
-const VERSION = '2.3.3';
+const VERSION = '2.3.4';
 
 // Position: 'bottom-left', 'bottom-right', 'top-left', 'top-right'
 const POSITION = 'bottom-left';

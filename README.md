@@ -6,7 +6,7 @@ A beautiful glassmorphism system monitor widget for macOS desktop.
 
 **Author:** B4E SRL - David Baldwin
 **License:** MIT
-**Version:** 2.3.3
+**Version:** 2.3.4
 
 ## Features
 
@@ -40,7 +40,23 @@ This script will:
 2. Download and install Übersicht if not present
 3. Copy the widget to the correct location
 4. Configure Übersicht to start on login
-5. Launch Übersicht
+5. Optionally enable advanced features (CPU temp, fan speed, disk purge)
+6. Launch Übersicht
+
+### Advanced Features (Optional)
+
+The installer will ask if you want to enable:
+- **CPU temperature** and **fan speed** monitoring
+- **Disk purge** functionality (one-click to free purgeable space)
+
+This requires adding passwordless sudo for `powermetrics`, `purge`, and `tmutil`.
+You'll be prompted for your password once during installation. The configuration
+is stored in `/etc/sudoers.d/macjet`.
+
+To remove advanced features later:
+```bash
+sudo rm /etc/sudoers.d/macjet
+```
 
 ### Manual Installation
 

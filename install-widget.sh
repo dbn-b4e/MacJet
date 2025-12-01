@@ -28,7 +28,7 @@
 #
 # Author:  B4E SRL - David Baldwin
 # License: MIT
-# Version: 2.3.3
+# Version: 2.3.4
 # Date:    2025-11-29
 #
 # =============================================================================
@@ -77,7 +77,7 @@ echo " B4E SRL - David Baldwin"
 echo "========================================"
 echo
 
-TOTAL_STEPS=4
+TOTAL_STEPS=5
 
 # Step 1: Check/Install Xcode Command Line Tools
 # Required for Swift (used for accurate disk purgeable space calculation)
@@ -149,6 +149,38 @@ if osascript -e 'tell application "System Events" to get the name of every login
 else
     osascript -e 'tell application "System Events" to make login item at end with properties {path:"/Applications/Übersicht.app", hidden:false}' 2>/dev/null || true
     print_success "Added to login items"
+fi
+
+# Step 5: Configure sudo for advanced features (optional)
+# powermetrics: CPU temperature and fan speed
+# purge: Clear purgeable disk space
+print_step 5 $TOTAL_STEPS "Configuring advanced features..."
+
+# Check if already configured
+SUDOERS_FILE="/etc/sudoers.d/macjet"
+if [ -f "$SUDOERS_FILE" ]; then
+    print_success "Already configured"
+else
+    echo
+    echo "       Optional: Enable CPU temperature, fan speed, and disk purge?"
+    echo "       This requires adding passwordless sudo for 'powermetrics' and 'purge'."
+    echo "       You will be prompted for your password once."
+    echo
+    read -p "       Enable advanced features? [y/N] " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        # Create sudoers entry
+        SUDOERS_CONTENT="# MacJet widget - allow powermetrics and purge without password
+$USER ALL=(ALL) NOPASSWD: /usr/bin/powermetrics
+$USER ALL=(ALL) NOPASSWD: /usr/sbin/purge
+$USER ALL=(ALL) NOPASSWD: /usr/bin/tmutil thinlocalsnapshots"
+
+        echo "$SUDOERS_CONTENT" | sudo tee "$SUDOERS_FILE" > /dev/null
+        sudo chmod 440 "$SUDOERS_FILE"
+        print_success "Advanced features enabled"
+    else
+        print_success "Skipped (CPU temp/fan/purge won't be available)"
+    fi
 fi
 
 # Launch Übersicht
