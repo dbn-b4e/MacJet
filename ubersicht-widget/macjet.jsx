@@ -52,7 +52,7 @@
  *
  * Author:  B4E SRL - David Baldwin
  * License: MIT
- * Version: 2.3.2
+ * Version: 2.3.3
  * Date:    2025-11-29
  *
  * Repository: https://github.com/dbn-b4e/MacJet
@@ -71,14 +71,14 @@ export const refreshFrequency = 5000;
 const SCALE = 1.0;
 
 // Version
-const VERSION = '2.3.2';
+const VERSION = '2.3.3';
 
 // Position: 'bottom-left', 'bottom-right', 'top-left', 'top-right'
 const POSITION = 'bottom-left';
 
 // Data collection command
 export const command = `
-python3 << 'PYTHON_SCRIPT'
+python3 -W ignore << 'PYTHON_SCRIPT'
 import subprocess
 import re
 import json
@@ -182,7 +182,7 @@ print("\\(v.volumeTotalCapacity!),\\(v.volumeAvailableCapacity!),\\(v.volumeAvai
         fd, path = tempfile.mkstemp(suffix='.swift')
         os.write(fd, swift_code.encode())
         os.close(fd)
-        output = run_cmd(f"swift {path}")
+        output = run_cmd(f"swift {path} 2>/dev/null")
         os.unlink(path)
         parts = output.strip().split(',')
         if len(parts) == 3:
@@ -251,23 +251,36 @@ def get_temps_and_fans():
     """Get battery temp (CPU/fan need sudo or external tools)"""
     info = {'battery_temp': 0, 'cpu_temp': 0, 'fan_speed': 0}
 
-    # Battery temperature from ioreg (in centi-Kelvin, convert to Celsius)
+    # Battery temperature from ioreg (in deci-Kelvin, convert to Celsius)
     output = run_cmd('ioreg -rn AppleSmartBattery | grep Temperature')
     match = re.search(r'"Temperature"\\s*=\\s*(\\d+)', output)
     if match:
-        # Value is in centi-Kelvin (e.g., 3066 = 306.6K = 33.45°C)
-        temp_ck = int(match.group(1))
-        info['battery_temp'] = round(temp_ck / 100 - 273.15, 1)
+        # Value is in deci-Kelvin (e.g., 3050 = 305.0K = 31.85°C)
+        temp_dk = int(match.group(1))
+        info['battery_temp'] = round(temp_dk / 10 - 273.15, 1)
 
-    # CPU temp - try osx-cpu-temp if installed
+    # CPU temp - try multiple methods
+    # Method 1: osx-cpu-temp (if installed via brew)
     cpu_output = run_cmd("osx-cpu-temp 2>/dev/null")
     if cpu_output.strip():
         match = re.search(r'([\\d.]+)', cpu_output)
         if match:
             info['cpu_temp'] = float(match.group(1))
 
-    # Fan speed - try smcFanControl format or ioreg
-    # Most Macs need sudo for SMC access
+    # Method 2: powermetrics (if sudo NOPASSWD configured)
+    if info['cpu_temp'] == 0:
+        pm_output = run_cmd("sudo -n powermetrics -s smc -i 1 -n 1 2>/dev/null | grep -i 'CPU die temperature'")
+        if pm_output.strip():
+            match = re.search(r'([\\d.]+)\\s*C', pm_output)
+            if match:
+                info['cpu_temp'] = float(match.group(1))
+
+    # Fan speed from powermetrics (if sudo NOPASSWD configured)
+    fan_output = run_cmd("sudo -n powermetrics -s smc -i 1 -n 1 2>/dev/null | grep -i 'Fan:'")
+    if fan_output.strip():
+        match = re.search(r'([\\d.]+)\\s*rpm', fan_output, re.IGNORECASE)
+        if match:
+            info['fan_speed'] = int(float(match.group(1)))
 
     return info
 
@@ -388,6 +401,9 @@ elif not battery['external_connected'] and abs(instant_amp) > 0:
     my_time_str = f"{mins // 60}h {mins % 60:02d}m"
     time_label = "remaining"
 
+# Check if sudo purge is available (passwordless) - just validate, don't run
+can_purge = 'purge' in run_cmd("sudo -n -l 2>/dev/null")
+
 data = {
     'cpu_pct': round(cpu, 1),
     'cpu_throttle': thermal,
@@ -398,6 +414,7 @@ data = {
     'disk_total': round(disk['total_gb'], 0),
     'disk_free': round(disk['free_gb'], 0),
     'disk_purgeable': round(disk['purgeable_gb'], 0),
+    'can_purge': can_purge,
     'battery_pct': pmset['percentage'],
     'battery_status': pmset['status'],
     'battery_health': round(health, 1),
@@ -452,12 +469,13 @@ export const render = ({ output, error }) => {
     );
   }
 
-  // Get expanded state from localStorage
-  let expanded = {};
+  // Get expanded state from localStorage (default: all expanded)
+  const defaultExpanded = { cpu: true, memory: true, disk: true, battery: true, network: true };
+  let expanded = { ...defaultExpanded };
   if (typeof window !== 'undefined') {
     try {
       const saved = localStorage.getItem('macjet-expanded');
-      if (saved) expanded = JSON.parse(saved);
+      if (saved) expanded = { ...defaultExpanded, ...JSON.parse(saved) };
     } catch (e) {}
   }
 
@@ -544,6 +562,12 @@ export const render = ({ output, error }) => {
           color2="#8b5cf6"
           glowColor="rgba(139, 92, 246, 0.5)"
         />
+        {(data.cpu_temp > 0 || data.fan_speed > 0) && (
+          <div data-section="cpu" style={{...styles.details, display: expanded.cpu ? 'flex' : 'none'}}>
+            {data.cpu_temp > 0 && <span>Temp: <span style={{color: data.cpu_temp > 80 ? '#ef4444' : data.cpu_temp > 60 ? '#f59e0b' : 'rgba(255,255,255,0.7)'}}>{data.cpu_temp}°C</span></span>}
+            {data.cpu_temp > 0 && <span>Fan: {data.fan_speed > 0 ? data.fan_speed + ' RPM' : 'idle'}</span>}
+          </div>
+        )}
       </div>
 
       {/* Memory Section */}
@@ -576,9 +600,29 @@ export const render = ({ output, error }) => {
           color2="#ef4444"
           glowColor="rgba(245, 158, 11, 0.5)"
         />
-        <div data-section="disk" style={{...styles.details, display: expanded.disk ? 'flex' : 'none'}}>
-          <span>+{data.disk_purgeable}GB purgeable</span>
-        </div>
+        {data.disk_purgeable > 0 && (
+          <div data-section="disk" style={{...styles.details, display: expanded.disk ? 'flex' : 'none'}}>
+            <span>+{data.disk_purgeable}GB purgeable</span>
+            {data.can_purge ? (
+              <span
+                style={{color: '#06b6d4', textDecoration: 'underline', cursor: 'pointer', marginLeft: '8px'}}
+                onClick={(e) => {
+                  const el = e.target;
+                  el.textContent = 'Purging...';
+                  el.style.pointerEvents = 'none';
+                  const cmd = 'sudo purge; sudo tmutil thinlocalsnapshots / 10000000000 4 2>/dev/null || true';
+                  try { require('child_process').exec(cmd); } catch(err) {}
+                  setTimeout(() => { el.textContent = 'Click to purge'; el.style.pointerEvents = 'auto'; }, 5000);
+                }}
+              >Click to purge</span>
+            ) : (
+              <a
+                href="x-apple.systempreferences:com.apple.settings.Storage"
+                style={{color: '#06b6d4', textDecoration: 'underline', cursor: 'pointer', marginLeft: '8px'}}
+              >Manage</a>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Battery Section */}
@@ -598,6 +642,7 @@ export const render = ({ output, error }) => {
         <div data-section="battery" style={{...styles.details, display: expanded.battery ? 'flex' : 'none'}}>
           <span>Health: {data.battery_health}%</span>
           <span>Cycles: {data.battery_cycles}</span>
+          {data.battery_temp > 0 && <span>Temp: {data.battery_temp}°C</span>}
           {data.battery_time_label && (
             <span>
               {data.battery_time_label === 'to full' ? 'Full' : 'Left'}: {data.battery_time_mac || data.battery_time_my || 'calculating...'}
@@ -672,29 +717,6 @@ export const render = ({ output, error }) => {
         </div>
       )}
 
-      {/* Temps */}
-      {(data.battery_temp > 0 || data.cpu_temp > 0 || data.fan_speed > 0) && (
-        <div style={styles.section}>
-          <div style={styles.infoRow}>
-            <span style={styles.infoIcon}>🌡️</span>
-            {data.battery_temp > 0 && (
-              <span style={styles.tempItem}>
-                Batt: <span style={{color: data.battery_temp > 40 ? '#f59e0b' : 'rgba(255,255,255,0.7)'}}>{data.battery_temp}°C</span>
-              </span>
-            )}
-            {data.cpu_temp > 0 && (
-              <span style={styles.tempItem}>
-                CPU: <span style={{color: data.cpu_temp > 80 ? '#ef4444' : data.cpu_temp > 60 ? '#f59e0b' : 'rgba(255,255,255,0.7)'}}>{data.cpu_temp}°C</span>
-              </span>
-            )}
-            {data.fan_speed > 0 && (
-              <span style={styles.tempItem}>
-                Fan: <span style={{color: 'rgba(255,255,255,0.7)'}}>{data.fan_speed} RPM</span>
-              </span>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 };

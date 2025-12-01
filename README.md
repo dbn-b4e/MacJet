@@ -6,13 +6,13 @@ A beautiful glassmorphism system monitor widget for macOS desktop.
 
 **Author:** B4E SRL - David Baldwin
 **License:** MIT
-**Version:** 2.3.2
+**Version:** 2.3.3
 
 ## Features
 
-- **CPU** - Usage percentage with thermal throttling indicator
+- **CPU** - Usage percentage, temperature, fan speed (idle/RPM), thermal throttling indicator
 - **Memory** - Used/total with purgeable memory accounted for
-- **Disk** - Free/total with purgeable space (Swift API with `df` fallback)
+- **Disk** - Free/total with purgeable space, one-click purge (Swift API with `df` fallback)
 - **Battery** - Percentage, status, health, cycle count, temperature, time estimates
 - **Power** - Adapter usage/capacity, charging power, discharge rate on battery
 - **Network** - WiFi SSID/IP, Ethernet IP, Tailscale VPN status
@@ -119,7 +119,41 @@ python3 power_monitor.py
 
 - **Xcode Command Line Tools** - For accurate disk purgeable space (falls back to `df` if not installed)
 - **Tailscale** - For VPN status display
-- **osx-cpu-temp** - For CPU temperature display
+- **CPU temperature & fan speed** - Requires one of:
+  - `osx-cpu-temp` via Homebrew: `brew install osx-cpu-temp`
+  - Or configure passwordless sudo for powermetrics (see below)
+
+### Enabling CPU Temperature & Fan Speed
+
+To enable CPU temp and fan speed without Homebrew, configure sudo to allow `powermetrics` without a password:
+
+```bash
+sudo visudo
+```
+
+Add this line at the end (replace `yourusername` with your actual username):
+
+```
+yourusername ALL=(ALL) NOPASSWD: /usr/bin/powermetrics
+```
+
+Save and exit. The widget will automatically detect and display CPU temperature and fan speed on next refresh.
+
+### Enabling One-Click Disk Purge
+
+To enable purging disk cache directly from the widget (instead of opening Storage settings), add purge permissions:
+
+```bash
+sudo visudo
+```
+
+Add this line (replace `yourusername` with your actual username):
+
+```
+yourusername ALL=(ALL) NOPASSWD: /usr/sbin/purge, /usr/bin/tmutil
+```
+
+Save and exit. The widget will detect this and clicking "+XGB purgeable" will run purge directly.
 
 ## Technical Details
 
