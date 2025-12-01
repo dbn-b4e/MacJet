@@ -6,7 +6,7 @@ A beautiful glassmorphism system monitor widget for macOS desktop.
 
 **Author:** B4E SRL - David Baldwin
 **License:** MIT
-**Version:** 2.3.5
+**Version:** 2.3.6
 
 ## Features
 
@@ -171,10 +171,10 @@ yourusername ALL=(ALL) NOPASSWD: /usr/sbin/purge, /usr/bin/tmutil
 
 Save and exit. The widget will detect this and show two purge buttons in the disk section:
 
-- **Purge RAM** - Clears inactive memory cache (`sudo purge`)
-- **Purge TM** - Deletes all Time Machine local snapshots (`tmutil deletelocalsnapshots`)
+- **Purge RAM** (Memory section) - Clears inactive memory cache (`sudo purge`)
+- **Purge TM** (Disk section) - Deletes all Time Machine local snapshots (`tmutil deletelocalsnapshots`)
 
-The TM purge is useful if you back up to a NAS (like Synology) and don't need local snapshots consuming disk space.
+The TM purge is useful if you back up to a NAS (like Synology) and don't need local snapshots consuming disk space. Note that disk "purgeable" space may also include iCloud files and system caches which macOS manages automatically.
 
 ## Technical Details
 

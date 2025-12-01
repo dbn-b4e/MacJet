@@ -28,7 +28,7 @@
 #
 # Author:  B4E SRL - David Baldwin
 # License: MIT
-# Version: 2.3.5
+# Version: 2.3.6
 # Date:    2025-11-29
 #
 # =============================================================================
@@ -153,34 +153,47 @@ fi
 
 # Step 5: Configure sudo for advanced features (optional)
 # powermetrics: CPU temperature and fan speed
-# purge: Clear purgeable disk space
+# purge: Clear RAM cache
+# tmutil: Delete Time Machine local snapshots
 print_step 5 $TOTAL_STEPS "Configuring advanced features..."
 
-# Check if already configured
 SUDOERS_FILE="/etc/sudoers.d/macjet"
+SUDOERS_CONTENT="# MacJet widget - allow powermetrics, purge, and tmutil without password
+$USER ALL=(ALL) NOPASSWD: /usr/bin/powermetrics
+$USER ALL=(ALL) NOPASSWD: /usr/sbin/purge
+$USER ALL=(ALL) NOPASSWD: /usr/bin/tmutil"
+
+# Check if already configured with correct content
+NEEDS_UPDATE=false
 if [ -f "$SUDOERS_FILE" ]; then
-    print_success "Already configured"
+    # Check if tmutil line allows all commands (not just thinlocalsnapshots)
+    if sudo grep -q "tmutil thinlocalsnapshots" "$SUDOERS_FILE" 2>/dev/null; then
+        NEEDS_UPDATE=true
+        echo "       Updating sudoers for full tmutil access..."
+    elif sudo grep -q "NOPASSWD: /usr/bin/tmutil$" "$SUDOERS_FILE" 2>/dev/null; then
+        print_success "Already configured"
+    else
+        NEEDS_UPDATE=true
+    fi
 else
     echo
     echo "       Optional: Enable CPU temperature, fan speed, and disk purge?"
-    echo "       This requires adding passwordless sudo for 'powermetrics' and 'purge'."
+    echo "       This requires adding passwordless sudo for 'powermetrics', 'purge', and 'tmutil'."
     echo "       You will be prompted for your password once."
     echo
     read -p "       Enable advanced features? [y/N] " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        # Create sudoers entry
-        SUDOERS_CONTENT="# MacJet widget - allow powermetrics and purge without password
-$USER ALL=(ALL) NOPASSWD: /usr/bin/powermetrics
-$USER ALL=(ALL) NOPASSWD: /usr/sbin/purge
-$USER ALL=(ALL) NOPASSWD: /usr/bin/tmutil thinlocalsnapshots"
-
-        echo "$SUDOERS_CONTENT" | sudo tee "$SUDOERS_FILE" > /dev/null
-        sudo chmod 440 "$SUDOERS_FILE"
-        print_success "Advanced features enabled"
+        NEEDS_UPDATE=true
     else
         print_success "Skipped (CPU temp/fan/purge won't be available)"
     fi
+fi
+
+if [ "$NEEDS_UPDATE" = true ]; then
+    echo "$SUDOERS_CONTENT" | sudo tee "$SUDOERS_FILE" > /dev/null
+    sudo chmod 440 "$SUDOERS_FILE"
+    print_success "Advanced features enabled"
 fi
 
 # Launch Übersicht
